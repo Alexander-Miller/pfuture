@@ -1,27 +1,42 @@
 * Process Future
 
+** What it is
+
 process-future.el offers a set of simple functions extending Emacs' existing ~make-process~ functionality. It bundles
-both a process in a single struct - the "future" - making it conventiently easy to pass around to other functions,
-wait for it to complete and access its output. In other words it's basically an asynchronous version of ~shell-command-to-string~.
+both a process and its output in a single struct - the "future" - making it conventiently easy to pass around to other functions,
+wait for it to complete and access its output. In other words what this package offers is an asynchronous version of
+~shell-command-to-string~ without the need of dealing with process creation and filter functions.
 
-To create a future use ~pf-create~. It takes as input a list of strings which is the command to run and returns a ~process-future~
-struct made up of the two fields ~process~ and ~result~.
+** How to use it
 
-To wait for a future to complete use ~pf-await~. It takes as input the future to wait for as well as the keyword args
-~:timeout~ (in ms) and ~:just-this-one~ (see ~accept-process-output~) and returns the process output, or nil if the process
+To create a future use ~pf::create~. It takes as input a list of strings which is the command to run and returns a
+~pf::future~ struct made up of the two fields ~process~ and ~result~, both quickly accessible though ~pf::process-of~
+and ~pf::result-of~ respectively.
+
+To wait for a future to produce a result use ~pf::await~. It takes as input the future to wait for as well as the keyword args
+~:timeout~ (in s) and ~:just-this-one~ (see ~accept-process-output~) and returns the process output, or nil if the process
 did not finish within the given timeout. The output (or nil) will also be assgined to the future's ~result~ field.
 
-For example given this slow_status.sh bash script
+To keep waiting until the process is dead and finished use ~pf::await-to-finish~ which will keep reading while the process still lives
+a per ~process-live-p~.
+
+Finally ~pf::is-alive?~ is a convenience method to check if a future's process is still alive.
+
+** Practical example
+
+Given this artificially slow_status.sh bash script
 
 #+BEGIN_SRC bash
   sleep 3 && git status
 #+END_SRC
 
-the following code will execute within 3 seconds, despite running the script twice:
+despite running the script twice the following code will execute within 3 seconds on account of being asynchronous:
 
 #+BEGIN_SRC emacs-lisp
-  (let ((future1 (pf-create "bash" "slow_status.sh"))
-        (future2 (pf-create "bash" "slow_status.sh")))
-    (pf-await future1 :timeout 4000 :just-this-one nil)
-    (pf-await future2 :timeout 4000 :just-this-one nil))
+  (let ((start   (float-time))
+        (future1 (pf::create "bash" "slow_status.sh"))
+        (future2 (pf::create "bash" "slow_status.sh")))
+    (pf::await future1 :timeout 4 :just-this-one nil)
+    (pf::await future2 :timeout 4 :just-this-one nil)
+    (message "Finished after %s seconds" (round (- (float-time) start))))
 #+END_SRC
