@@ -21,38 +21,64 @@
 
 (require 'cl-macs)
 
-(cl-defstruct process-future
+(cl-defstruct pf::future
   process result)
 
-(defun pf-create (&rest args)
+(defun pf::create (&rest args)
   "Create a new process future with ARGS.
 This will return a struct (as created by `cl-defstruct') with 2 fields:
-'process' which is the process object which will be created and 'result' which
-will hold the output of the process after it has finished running.
+'process' which is the process object that will be started and 'result', where
+the process will be writing its output.
 
-Note that ARGS must be a list of strings as demanded by `make-prcess'.
-For example '(pf-create \"git status\")' will not work, you must call
-'(pf-create \"git\" \"status\")' instead."
-  (let* ((future  (make-process-future))
+Note that ARGS must be a *list* of strings as demanded by `make-process'.
+In other words
+This is wrong: (pf::create \"git status\")
+This is right: (pf::create \"git\" \"status\")"
+  (let* ((future  (make-pf::future))
          (process (make-process
                    :name "Process Future"
                    :connection-type 'pipe
                    :command args
                    :filter #'(lambda (_ msg)
-                               (setf (process-future-result future) msg)))))
-    (setf (process-future-process future) process)
+                               (let ((result (pf::result-of future)))
+                                 (setf (pf::future-result future) (concat result msg)))))))
+    (setf (pf::future-process future) process)
     future))
 
-(cl-defun pf-await (future &key (timeout 1000) (just-this-one t))
-  "Wait until FUTURE has produced output and return it.
-Wait at most TIMEOUT miliseconds. The returned value will be nil and the process
-will keep running if the process is not finished after TIMEOUT miliseconds.
-When JUST-THIS-ONE is non-nil accept output only from FUTURE and suspend reading
-output from processes other than FUTURE. For details see documentation of
-`accept-process-output'."
+(cl-defun pf::await (future &key (timeout 1) (just-this-one t))
+  "Block until FUTURE has produced output and return it.
+The output will also be added to FUTURE's 'result' field.
+
+Will accept the following optional keyword arguments:
+
+TIMEOUT: The timeout in seconds to wait for the process. May be a float to
+specify fractional number of seconds. In case of timeout nil will be returned.
+
+JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
+details see documentation of `accept-process-output'."
   (accept-process-output
-   (process-future-process future) 0 timeout just-this-one)
-  (process-future-result future))
+   (pf::process-of future) timeout nil just-this-one)
+  (pf::result-of future))
+
+(defun pf::await-to-finish (future)
+  "Keep reading the output of FUTURE until it is done.
+Same as `pf::await', but will keep reading (and blocking) so long as the
+process associated with FUTURE is alive.
+If the process never quits this method will block forever. Use with caution!"
+  (let ((process (pf::process-of future)))
+    (while (process-live-p process)
+      (accept-process-output process nil nil t)))
+  (pf::result-of future))
+
+(defun pf::is-alive? (future)
+  "Return whether the process associated with FUTURE is alive."
+  (process-live-p (pf::process-of future)))
+
+(defalias 'pf::process-of #'pf::future-process
+  "Access a process future's process slot.")
+
+(defalias 'pf::result-of #'pf::future-result
+  "Access a process future's result slot.")
 
 (provide 'process-future)
 
