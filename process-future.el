@@ -24,7 +24,7 @@
 (cl-defstruct pf::future
   process result)
 
-(defun pf::create (&rest args)
+(defun pf::new (&rest args)
   "Create a new process future with ARGS.
 This will return a struct (as created by `cl-defstruct') with 2 fields:
 'process' which is the process object that will be started and 'result', where
@@ -32,8 +32,8 @@ the process will be writing its output.
 
 Note that ARGS must be a *list* of strings as demanded by `make-process'.
 In other words
-This is wrong: (pf::create \"git status\")
-This is right: (pf::create \"git\" \"status\")"
+This is wrong: (pf::new \"git status\")
+This is right: (pf::new \"git\" \"status\")"
   (let* ((future  (make-pf::future))
          (process (make-process
                    :name "Process Future"

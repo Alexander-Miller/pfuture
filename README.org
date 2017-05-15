@@ -9,7 +9,7 @@ wait for it to complete and access its output. In other words what this package 
 
 ** How to use it
 
-To create a future use ~pf::create~. It takes as input a list of strings which is the command to run and returns a
+To create a future use ~pf::new~. It takes as input a list of strings which is the command to run and returns a
 ~pf::future~ struct made up of the two fields ~process~ and ~result~, both quickly accessible though ~pf::process-of~
 and ~pf::result-of~ respectively.
 
@@ -34,8 +34,8 @@ despite running the script twice the following code will execute within 3 second
 
 #+BEGIN_SRC emacs-lisp
   (let ((start   (float-time))
-        (future1 (pf::create "bash" "slow_status.sh"))
-        (future2 (pf::create "bash" "slow_status.sh")))
+        (future1 (pf::new "bash" "slow_status.sh"))
+        (future2 (pf::new "bash" "slow_status.sh")))
     (pf::await future1 :timeout 4 :just-this-one nil)
     (pf::await future2 :timeout 4 :just-this-one nil)
     (message "Finished after %s seconds" (round (- (float-time) start))))
