@@ -56,8 +56,9 @@ specify fractional number of seconds. In case of timeout nil will be returned.
 
 JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
 details see documentation of `accept-process-output'."
-  (accept-process-output
-   (pf::process-of future) timeout nil just-this-one)
+  (when (pf::is-alive? future)
+    (accept-process-output
+     (pf::process-of future) timeout nil just-this-one))
   (pf::result-of future))
 
 (defun pf::await-to-finish (future)
