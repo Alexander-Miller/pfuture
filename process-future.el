@@ -2,6 +2,10 @@
 
 ;; Copyright (C) 2017 Alexander Miller
 
+;; Author: Alexander Miller <alexanderm@web.de>
+;; Homepage: https://github.com/Alexander-Miller/treemacs
+;; Version: 1.0
+
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
