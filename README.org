@@ -9,18 +9,18 @@ wait for it to complete and access its output. In other words what this package 
 
 ** How to use it
 
-To create a future use ~pf::new~. It takes as input a list of strings which is the command to run and returns a
-~pf::future~ struct made up of the two fields ~process~ and ~result~, both quickly accessible though ~pf::process-of~
-and ~pf::result-of~ respectively.
+To create a future use ~pf-new~. It takes as input a list of strings which is the command to run and returns a
+~pf-future~ struct made up of the two fields ~process~ and ~result~, both quickly accessible though ~pf-process-of~
+and ~pf-result-of~ respectively.
 
-To wait for a future to produce a result use ~pf::await~. It takes as input the future to wait for as well as the keyword args
+To wait for a future to produce a result use ~pf-await~. It takes as input the future to wait for as well as the keyword args
 ~:timeout~ (in s) and ~:just-this-one~ (see ~accept-process-output~) and returns the process output, or nil if the process
 did not finish within the given timeout. The output (or nil) will also be assgined to the future's ~result~ field.
 
-To keep waiting until the process is dead and finished use ~pf::await-to-finish~ which will keep reading while the process still lives
+To keep waiting until the process is dead and finished use ~pf-await-to-finish~ which will keep reading while the process still lives
 a per ~process-live-p~.
 
-Finally ~pf::is-alive?~ is a convenience method to check if a future's process is still alive.
+Finally ~pf-is-alive?~ is a convenience method to check if a future's process is still alive.
 
 ** Practical example
 
@@ -34,9 +34,9 @@ despite running the script twice the following code will execute within 3 second
 
 #+BEGIN_SRC emacs-lisp
   (let ((start   (float-time))
-        (future1 (pf::new "bash" "slow_status.sh"))
-        (future2 (pf::new "bash" "slow_status.sh")))
-    (pf::await future1 :timeout 4 :just-this-one nil)
-    (pf::await future2 :timeout 4 :just-this-one nil)
+        (future1 (pf-new "bash" "slow_status.sh"))
+        (future2 (pf-new "bash" "slow_status.sh")))
+    (pf-await future1 :timeout 4 :just-this-one nil)
+    (pf-await future2 :timeout 4 :just-this-one nil)
     (message "Finished after %s seconds" (round (- (float-time) start))))
 #+END_SRC
