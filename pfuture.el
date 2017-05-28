@@ -80,6 +80,6 @@ If the process never quits this method will block forever. Use with caution!"
   "Return whether the process associated with FUTURE is alive."
   (process-live-p (pfuture-process future)))
 
-(provide 'process-future)
+(provide 'pfuture)
 
-;;; process-future.el ends here
+;;; pfuture.el ends here
