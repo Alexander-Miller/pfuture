@@ -1,4 +1,4 @@
-;;; process-future.el --- a simple wrapper around asynchronous processes -*- lexical-binding: t -*-
+;;; pfuture.el --- a simple wrapper around asynchronous processes -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2017 Alexander Miller
 
@@ -26,65 +26,59 @@
 
 (require 'cl-lib)
 
-(cl-defstruct pf-future
+(cl-defstruct pfuture
   process result)
 
-(defun pf-new (&rest args)
-  "Create a new process future with ARGS.
+(defun pfuture-new (&rest args)
+  "Create a new pfuture with process ARGS.
 This will return a struct (as created by `cl-defstruct') with 2 fields:
 'process' which is the process object that will be started and 'result', where
 the process will be writing its output.
 
 Note that ARGS must be a *list* of strings as demanded by `make-process'.
 In other words
-This is wrong: (pf-new \"git status\")
-This is right: (pf-new \"git\" \"status\")"
-  (let* ((future  (make-pf-future))
+This is wrong: (pfuture-new \"git status\")
+This is right: (pfuture-new \"git\" \"status\")"
+  (let* ((future  (make-pfuture))
          (process (make-process
                    :name "Process Future"
                    :connection-type 'pipe
                    :command args
                    :filter #'(lambda (_ msg)
-                               (let ((result (pf-result-of future)))
-                                 (setf (pf-future-result future) (concat result msg)))))))
-    (setf (pf-future-process future) process)
+                               (let ((result (pfuture-result future)))
+                                 (setf (pfuture-result future) (concat result msg)))))))
+    (setf (pfuture-process future) process)
     future))
 
-(cl-defun pf-await (future &key (timeout 1) (just-this-one t))
+(cl-defun pfuture-await (future &key (timeout 1) (just-this-one t))
   "Block until FUTURE has produced output and return it.
 The output will also be added to FUTURE's 'result' field.
 
 Will accept the following optional keyword arguments:
 
 TIMEOUT: The timeout in seconds to wait for the process. May be a float to
-specify fractional number of seconds. In case of timeout nil will be returned.
+specify fractional number of seconds. In case of a timeout nil will be returned.
 
 JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
 details see documentation of `accept-process-output'."
-  (when (pf-is-alive? future)
+  (when (pfuture-live-p future)
     (accept-process-output
-     (pf-process-of future) timeout nil just-this-one))
-  (pf-result-of future))
+     (pfuture-process future) timeout nil just-this-one))
+  (pfuture-result future))
 
-(defun pf-await-to-finish (future)
+(defun pfuture-await-to-finish (future)
   "Keep reading the output of FUTURE until it is done.
-Same as `pf-await', but will keep reading (and blocking) so long as the
-process associated with FUTURE is alive.
+Same as `pfuture-await', but will keep reading (and blocking) so long as the
+process associated with FUTURE is *alive*.
 If the process never quits this method will block forever. Use with caution!"
-  (let ((process (pf-process-of future)))
+  (let ((process (pfuture-process future)))
     (while (process-live-p process)
       (accept-process-output process nil nil t)))
-  (pf-result-of future))
+  (pfuture-result future))
 
-(defun pf-is-alive? (future)
+(defun pfuture-live-p (future)
   "Return whether the process associated with FUTURE is alive."
-  (process-live-p (pf-process-of future)))
-
-(defalias 'pf-process-of #'pf-future-process
-  "Access a process future's process slot.")
-
-(defalias 'pf-result-of #'pf-future-result
-  "Access a process future's result slot.")
+  (process-live-p (pfuture-process future)))
 
 (provide 'process-future)
 
