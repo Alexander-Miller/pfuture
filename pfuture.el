@@ -29,6 +29,7 @@
 (cl-defstruct pfuture
   process result)
 
+;;;###autoload
 (defun pfuture-new (&rest args)
   "Create a new pfuture with process ARGS.
 This will return a struct (as created by `cl-defstruct') with 2 fields:
