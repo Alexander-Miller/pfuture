@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Alexander Miller
 
 ;; Author: Alexander Miller <alexanderm@web.de>
-;; Homepage: https://github.com/Alexander-Miller/treemacs
+;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25"))
 ;; Version: 1.0
 
