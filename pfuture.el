@@ -61,7 +61,15 @@ TIMEOUT: The timeout in seconds to wait for the process. May be a float to
 specify fractional number of seconds. In case of a timeout nil will be returned.
 
 JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
-details see documentation of `accept-process-output'."
+details see documentation of `accept-process-output'.
+
+*Warning*:
+Be careful when asking for the exit status of a future's process -
+`process-exit-status' will return 0 for a process that has not yet finished.
+This might for example give you trouble when you expect to parse the output of
+a git process,the process seems to have an exit code of 0, but in fact will
+finish with exit code 128 since it wasn't launched in a git controlled
+direcotry. In such a case consider using ~pfuture-await-to-finish~ instead. "
   (accept-process-output
    (pfuture-process future) timeout nil just-this-one)
   (pfuture-result future))

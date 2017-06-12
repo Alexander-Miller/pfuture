@@ -17,6 +17,11 @@ of ~shell-command-to-string~ without the need to deal with process creation and 
    the optional keyword args ~:timeout~ (in s) and ~:just-this-one~ (see ~accept-process-output~) and returns the process
    output, or nil if the process did not finish within the given timeout. The output (or nil) will also be assgined to the
    future's ~result~ field.
+   *Warning*:
+   Be careful when asking for the exit status of a future's process - ~process-exit-status~ will return 0 for a process
+   that has not yet finished. This might for example give you trouble when you expect to parse the output of a git process,
+   the process seems to have an exit code of 0, but in fact will finish with exit code 128 since it wasn't launched in a
+   git controlled direcotry. In such a case consider using ~pfuture-await-to-finish~ instead.
 
  * To keep waiting until the process is dead and finished use ~pfuture-await-to-finish~ which will keep reading while the
    process still lives as per ~process-live-p~ (and will thus block /forever/ if the process never finishes).
