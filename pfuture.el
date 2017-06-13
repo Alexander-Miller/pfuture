@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25"))
-;; Version: 1.1
+;; Version: 1.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -73,6 +73,26 @@ direcotry. In such a case consider using ~pfuture-await-to-finish~ instead. "
   (accept-process-output
    (pfuture-process future) timeout nil just-this-one)
   (pfuture-result future))
+
+(defmacro pfuture-new! (&rest args)
+  "The same as `pfuture-new', but as a macro its input needn't be strings.
+Will convert ARGS to strings and then pass them on to `pfuture-new'. Assumes
+that every arg given is either a symbol, a number, or a string and will throw an
+error if this is not the case.
+
+This allows you to do
+\(pfuture-new! git status .\)
+instead of
+\(pfuture-new \"git\" \"status\" \".\"\)"
+  (let ((cmd (mapcar #'pfuture--arg-to-string args)))
+    `(pfuture-new ,@cmd)))
+
+(defun pfuture--arg-to-string (arg)
+  "Turn ARG into a string for `pfuture-new!'."
+  (cond ((stringp arg) arg)
+        ((numberp arg) (number-to-string arg))
+        ((symbolp arg) (symbol-name arg))
+        (t (error "Pfuture does not know how to handle '%s'. It is neither a string, a number or a symbol" arg))))
 
 (defun pfuture-await-to-finish (future)
   "Keep reading the output of FUTURE until it is done.

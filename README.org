@@ -13,6 +13,19 @@ of ~shell-command-to-string~ without the need to deal with process creation and 
    ~pfuture~ struct made up of the two fields ~process~ and ~result~, both accessible through ~pfuture-process~ and
    ~pfuture-result~ respectively.
 
+ * Alternatively you can use ~pfuture-new!~. It works the same as ~pfuture-new~, but as a macro its input needn't necessarily
+   be strings. It converts its arguments to strings and then passes them on to ~pfuture-new~. It assumes that every arg
+   given is either a symbol, a number, or a string and will throw an error if this is not the case.
+
+   This allows you to write
+   #+BEGIN_SRC emacs-lisp
+     (pfuture-new! git status .)
+   #+END_SRC
+   instead of
+   #+BEGIN_SRC emacs-lisp
+     (pfuture-new "git" "status" ".")
+   #+END_SRC
+
  * To wait for a future to produce a result use ~pfuture-await~. It takes as input the future to wait for as well as
    the optional keyword args ~:timeout~ (in s) and ~:just-this-one~ (see ~accept-process-output~) and returns the process
    output, or nil if the process did not finish within the given timeout. The output (or nil) will also be assgined to the
