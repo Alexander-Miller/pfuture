@@ -2,26 +2,43 @@
 
 ** What it is
 
-pfuture.el offers a set of simple functions extending Emacs' existing ~make-process~ functionality. It bundles
-both a process and its output in a single struct - the "future" - making it conveniently easy to pass around to other
+pfuture.el offers a set of simple functions wrapping Emacs' existing process creation functionality. It attaches
+the output of a process to the process itself - turning it into a "future" and making it conveniently easy to pass around to other
 functions, wait for it to complete and access its output. In other words what this package offers is an asynchronous version
 of ~shell-command-to-string~ without the need to deal with process creation and filter functions.
 
 ** How to use it
 
- * To create a future use ~pfuture-new~. It takes as input a list of strings which is the command to run and returns a
-   ~pfuture~ struct made up of the two fields ~process~ and ~result~, both accessible through ~pfuture-process~ and
-   ~pfuture-result~ respectively.
+ * ~pfuture-new (cmd &rest cmd-args)~
+   Create a new future process for command CMD and arguments CMD-ARGS.
+   This will return a process object with one additional ~'result~ property which
+   can be read via ~(process-get process 'result)~ or alternatively with
+   ~(pfuture-result process)~.
 
- * To wait for a future to produce a result use ~pfuture-await~. It takes as input the future to wait for as well as
-   the optional keyword args ~:timeout~ (in s) and ~:just-this-one~ (see ~accept-process-output~) and returns the process
-   output, or nil if the process did not finish within the given timeout. The output (or nil) will also be assgined to the
-   future's ~result~ field.
+   Note that CMD-ARGS must be a *sequence* of strings, such that
+   this is wrong: (pfuture-new "git status")
+   this is right: (pfuture-new "git" "status")
 
- * To keep waiting until the process is dead and finished use ~pfuture-await-to-finish~ which will keep reading while the
-   process still lives as per ~process-live-p~ (and will thus block /forever/ if the process never finishes).
+ * ~pfuture-await (process &key (timeout 1) (just-this-one t))~
+   Block until PROCESS has produced output and return it.
 
- * Finally ~pfufure-live-p~ is a convenience method to check if a future's process is still alive.
+   Will accept the following optional keyword arguments:
+
+   TIMEOUT: The timeout in seconds to wait for the process. May be a float to
+   specify fractional number of seconds. In case of a timeout nil will be returned.
+
+   JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
+   details see documentation of ~accept-process-output~.
+
+ * ~pfuture-await-to-finish (process)~
+   Keep reading the output of PROCESS until it is done.
+   Same as ~pfuture-await~, but will keep reading (and blocking) so long as the
+   process is *alive*.
+
+   If the process never quits this method will block forever. Use with caution!"
+
+ * ~pfuture-result (process)~
+   Return the output of PROCESS.
 
 ** Practical example
 
@@ -36,8 +53,9 @@ despite running the script twice the following code will execute within 3 second
 #+BEGIN_SRC emacs-lisp
   (let ((start   (float-time))
         (future1 (pfuture-new "bash" "slow_status.sh"))
-        (future2 (pfuture-new "bash" "slow_status.sh")))
+        (future2 (pfuture-new "bash" "slow_status.sh"))
+        (future3 (pfuture-new "echo" "Foo" "Bar")))
     (pfuture-await future1 :timeout 4 :just-this-one nil)
     (pfuture-await future2 :timeout 4 :just-this-one nil)
-    (message "Finished after %s seconds" (round (- (float-time) start))))
+    (message "%s finished after %s seconds" (pfuture-result future3) (round (- (float-time) start))))
 #+END_SRC

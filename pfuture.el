@@ -4,8 +4,8 @@
 
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
-;; Package-Requires: ((emacs "25"))
-;; Version: 1.1
+;; Package-Requires: ((emacs "24.4"))
+;; Version: 1.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -26,34 +26,28 @@
 
 (require 'cl-lib)
 
-(cl-defstruct pfuture
-  process result)
-
 ;;;###autoload
-(defun pfuture-new (&rest args)
-  "Create a new pfuture with process ARGS.
-This will return a struct (as created by `cl-defstruct') with 2 fields:
-'process' which is the process object that will be started and 'result', where
-the process will be writing its output.
+(defun pfuture-new (cmd &rest cmd-args)
+  "Create a new future process for command CMD and arguments CMD-ARGS.
+This will return a process object with one additional 'result property which
+can be read via \(process-get process 'result\) or alternatively with
+\(pfuture-result process\).
 
-Note that ARGS must be a *list* of strings as demanded by `make-process'.
-In other words
-This is wrong: (pfuture-new \"git status\")
-This is right: (pfuture-new \"git\" \"status\")"
-  (let* ((future  (make-pfuture))
-         (process (make-process
-                   :name "Process Future"
-                   :connection-type 'pipe
-                   :command args
-                   :filter #'(lambda (_ msg)
-                               (let ((result (pfuture-result future)))
-                                 (setf (pfuture-result future) (concat result msg)))))))
-    (setf (pfuture-process future) process)
-    future))
+Note that CMD-ARGS must be a *sequence* of strings, such that
+this is wrong: (pfuture-new \"git status\")
+this is right: (pfuture-new \"git\" \"status\")"
+  (let* ((process (apply #'start-process "Process Future" nil cmd cmd-args)))
+    (process-put process 'result "")
+    (set-process-filter
+     process
+     (lambda (pr msg)
+       (process-put
+        pr 'result
+        (concat (process-get pr 'result) msg))))
+    process))
 
-(cl-defun pfuture-await (future &key (timeout 1) (just-this-one t))
-  "Block until FUTURE has produced output and return it.
-The output will also be added to FUTURE's 'result' field.
+(cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
+  "Block until PROCESS has produced output and return it.
 
 Will accept the following optional keyword arguments:
 
@@ -63,23 +57,23 @@ specify fractional number of seconds. In case of a timeout nil will be returned.
 JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
 details see documentation of `accept-process-output'."
   (accept-process-output
-   (pfuture-process future) timeout nil just-this-one)
-  (pfuture-result future))
+   process timeout nil just-this-one)
+  (process-get process 'result))
 
-(defun pfuture-await-to-finish (future)
-  "Keep reading the output of FUTURE until it is done.
+(defun pfuture-await-to-finish (process)
+  "Keep reading the output of PROCESS until it is done.
 Same as `pfuture-await', but will keep reading (and blocking) so long as the
-process associated with FUTURE is *alive*.
-If the process never quits this method will block forever. Use with caution!"
-  (let ((process (pfuture-process future)))
-    (accept-process-output process nil nil t)
-    (while (process-live-p process)
-      (accept-process-output process nil nil t)))
-  (pfuture-result future))
+process is *alive*.
 
-(defun pfuture-live-p (future)
-  "Return whether the process associated with FUTURE is alive."
-  (process-live-p (pfuture-process future)))
+If the process never quits this method will block forever. Use with caution!"
+  (accept-process-output process nil nil t)
+  (while (process-live-p process)
+    (accept-process-output process nil nil t))
+  (process-get process 'result))
+
+(defun pfuture-result (process)
+  "Return the output of PROCESS."
+  (process-get process 'result))
 
 (provide 'pfuture)
 
