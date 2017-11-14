@@ -71,7 +71,7 @@ If the process never quits this method will block forever. Use with caution!"
     (accept-process-output process nil nil t))
   (process-get process 'result))
 
-(defun pfuture-result (process)
+(defsubst pfuture-result (process)
   "Return the output of PROCESS."
   (process-get process 'result))
 
