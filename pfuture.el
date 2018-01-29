@@ -36,7 +36,8 @@ can be read via \(process-get process 'result\) or alternatively with
 Note that CMD-ARGS must be a *sequence* of strings, meaning
 this is wrong: (pfuture-new \"git status\")
 this is right: (pfuture-new \"git\" \"status\")"
-  (let* ((process (apply #'start-process "Process Future" nil cmd cmd-args)))
+  (let* ((process-connection-type nil)
+         (process (apply #'start-process "Process Future" nil cmd cmd-args)))
     (process-put process 'result "")
     (set-process-filter process #'pfuture--append-output)
     process))
