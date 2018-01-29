@@ -1,11 +1,11 @@
 ;;; pfuture.el --- a simple wrapper around asynchronous processes -*- lexical-binding: t -*-
 
-;; Copyright (C) 2017 Alexander Miller
+;; Copyright (C) 2018 Alexander Miller
 
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "24.4"))
-;; Version: 1.2.1
+;; Version: 1.2.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,17 +33,12 @@ This will return a process object with one additional 'result property which
 can be read via \(process-get process 'result\) or alternatively with
 \(pfuture-result process\).
 
-Note that CMD-ARGS must be a *sequence* of strings, such that
+Note that CMD-ARGS must be a *sequence* of strings, meaning
 this is wrong: (pfuture-new \"git status\")
 this is right: (pfuture-new \"git\" \"status\")"
   (let* ((process (apply #'start-process "Process Future" nil cmd cmd-args)))
     (process-put process 'result "")
-    (set-process-filter
-     process
-     (lambda (pr msg)
-       (process-put
-        pr 'result
-        (concat (process-get pr 'result) msg))))
+    (set-process-filter process #'pfuture--append-output)
     process))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
@@ -76,6 +71,10 @@ If the process never quits this method will block forever. Use with caution!"
 (defsubst pfuture-result (process)
   "Return the output of PROCESS."
   (process-get process 'result))
+
+(defun pfuture--append-output (process msg)
+  "Append PROCESS' MSG to the already saved output."
+  (process-put process 'result (concat (process-get process 'result) msg)))
 
 (provide 'pfuture)
 
