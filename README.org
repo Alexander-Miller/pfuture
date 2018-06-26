@@ -1,19 +1,20 @@
+# -*- fill-column: 100 -*-
 * Pfuture
 
 ** What it is
 
-pfuture.el offers a set of simple functions wrapping Emacs' existing process creation functionality. It attaches
-the output of a process to the process itself - turning it into a "future" and making it conveniently easy to pass around to other
-functions, wait for it to complete and access its output. In other words what this package offers is an asynchronous version
-of ~shell-command-to-string~ without the need to deal with process creation and filter functions.
+pfuture.el offers a set of simple functions wrapping Emacs' existing process creation functionality.
+It attaches the output of a process to the process itself - turning it into a "future" and making it
+conveniently easy to pass around to other functions, wait for it to complete and access its output.
+In other words what this package offers is an asynchronous version of ~shell-command-to-string~
+without the need to deal with process creation and filter functions.
 
 ** How to use it
 
  * ~pfuture-new (cmd &rest cmd-args)~
-   Create a new future process for command CMD and arguments CMD-ARGS.
-   This will return a process object with one additional ~'result~ property which
-   can be read via ~(process-get process 'result)~ or alternatively with
-   ~(pfuture-result process)~.
+   Create a new future process for command CMD and arguments CMD-ARGS. This will return a process
+   object with one additional ~'result~ property which can be read via ~(process-get process
+   'result)~ or alternatively with ~(pfuture-result process)~.
 
    Note that CMD-ARGS must be a *sequence* of strings, such that
    this is wrong: (pfuture-new "git status")
@@ -31,24 +32,31 @@ of ~shell-command-to-string~ without the need to deal with process creation and 
    details see documentation of ~accept-process-output~.
 
  * ~pfuture-await-to-finish (process)~
-   Keep reading the output of PROCESS until it is done.
-   Same as ~pfuture-await~, but will keep reading (and blocking) so long as the
-   process is *alive*.
+   Keep reading the output of PROCESS until it is done. Same as ~pfuture-await~, but will keep
+   reading (and blocking) so long as the process is *alive*.
 
    If the process never quits this method will block forever. Use with caution!"
 
  * ~pfuture-result (process)~
    Return the output of PROCESS.
 
-** Practical example
+*** Also with callbacks
 
+If your use-case prevents you from keeping the process around for later use and you instead prefer a
+simple way to launch a process and run a callback once it's finished you can use ~pfuture-callback~.
+
+
+** Practical examples
+
+*** Future version
 Given this artificially slow_status.sh bash script
 
 #+BEGIN_SRC bash
   sleep 3 && git status
 #+END_SRC
 
-despite running the script twice the following code will execute within 3 seconds on account of being asynchronous:
+despite running the script twice the following code will execute within 3 seconds on account of
+being asynchronous:
 
 #+BEGIN_SRC emacs-lisp
   (let ((start   (float-time))
@@ -58,4 +66,24 @@ despite running the script twice the following code will execute within 3 second
     (pfuture-await future1 :timeout 4 :just-this-one nil)
     (pfuture-await future2 :timeout 4 :just-this-one nil)
     (message "%s finished after %s seconds" (pfuture-result future3) (round (- (float-time) start))))
+#+END_SRC
+
+*** Callback version
+
+The many arguments ~pfuture-callback~ are extensively documented in its docstring. The following
+code provides an example of using it to run a callback based on the output of a git process.
+
+#+BEGIN_SRC emacs-lisp
+  (pfuture-callback ["git" "status" "--porcelain" "--ignored" "."]
+    :directory "~/Documents/git/pfuture"
+    :name "Pfuture Example"
+    :connection-type 'pipe
+    :on-success
+    (message "Success:\n%s" output)
+    :on-error
+    (message "Failure with status code%s:\n%s"
+             (process-exit-status process)
+             output)
+    :on-status-change
+    (message "Debug status change: %s" status))
 #+END_SRC

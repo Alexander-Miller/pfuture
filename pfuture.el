@@ -4,7 +4,7 @@
 
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
-;; Package-Requires: ((emacs "24.4"))
+;; Package-Requires: ((emacs "25.2"))
 ;; Version: 1.2.2
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,61 @@ this is right: (pfuture-new \"git\" \"status\")"
     (process-put process 'result "")
     (set-process-filter process #'pfuture--append-output)
     process))
+
+(cl-defmacro pfuture-callback (command &key directory on-success on-error on-status-change name connection-type)
+  "Pfuture variant that supports a callback-based workflow.
+Internally based on `make-process'.
+
+The first - and only required - argument is COMMAND. It is a (unquoted) list of
+the command and the arguments for the process that should be started. A vector
+is likewise acceptable, the difference is purely cosmetic.
+
+The rest of the argument list if made up of the following keyword arguments:
+
+ON-SUCESS is the code that will run once the process has finished with an exit
+code of 0. It may make use of the variables \"process\", \"status\" and
+\"output\". The first two are the arguments for the process sentinel callbkack
+as is the default in Emacs, while \"output\" is the output produced by the
+process.
+
+ON-FAILURE is the inverse to ON-SUCCESS, it will only run if the process has
+finished with a non-zero exit code. Otherwise the same conditions apply as for
+ON-SUCCESS.
+
+ON-STATUS-CHANGE will run on every status change, even if the process remains
+running. It is meant for debugging and has access to the same variables as
+ON-SUCCESS and ON-ERROR, including the (potentially incomplete) process output.
+
+DIRECTORY is the value given to `default-directory' for the context of the
+process. If not given it will fall back the current value of `default-directory'.
+
+NAME will be passed to the :name property of `make-process'. If not given it will
+fall back to \"Pfuture Callback [$COMMAND]\".
+
+CONNECTION-TYPE will be passed to the :connection-process property of
+`make-process'. If not given it will fall back to 'pipe."
+  (declare (indent 1))
+  (let* ((command (if (vectorp command)
+                      (cl-map 'list #'identity command)
+                    command))
+         (name (or name (concat "Pfuture Callback: [" (mapconcat #'identity command " ") "]")))
+         (connection-type (or connection-type (quote 'pipe)))
+         (directory (or directory default-directory)))
+    `(let ((default-directory ,directory))
+       (make-process
+        :name ,name
+        :command ',command
+        :connection-type ,connection-type
+        :filter #'pfuture--append-output
+        :sentinel (lambda (process status)
+                    ,@(when on-status-change
+                        `((let ((output (process-get process 'result)))
+                            ,on-status-change)))
+                    (unless (process-live-p process)
+                      (let ((output (process-get process 'result)))
+                        (if (= 0 (process-exit-status process))
+                            ,on-success
+                          ,on-error))))))))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
   "Block until PROCESS has produced output and return it.
