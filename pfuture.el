@@ -114,7 +114,11 @@ CONNECTION-TYPE will be passed to the :connection-process property of
         :sentinel (lambda (process status)
                     ,@(when on-status-change
                         `((let ((output (process-get process 'result)))
-                            ,on-status-change)))
+                            ,@(cl-typecase on-status-change
+                                (function
+                                 `((funcall (function ,on-status-change) process status output)))
+                                (cons
+                                 `(,on-status-change))))))
                     (unless (process-live-p process)
                       (let ((output (process-get process 'result)))
                         (if (= 0 (process-exit-status process))
