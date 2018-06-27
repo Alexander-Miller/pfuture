@@ -46,25 +46,30 @@ this is right: (pfuture-new \"git\" \"status\")"
   "Pfuture variant that supports a callback-based workflow.
 Internally based on `make-process'.
 
-The first - and only required - argument is COMMAND. It is a (unquoted) list of
+The first - and only required - argument is COMMAND. It is an (unquoted) list of
 the command and the arguments for the process that should be started. A vector
 is likewise acceptable, the difference is purely cosmetic.
 
-The rest of the argument list if made up of the following keyword arguments:
+The rest of the argument list is made up of the following keyword arguments:
 
-ON-SUCESS is the code that will run once the process has finished with an exit
-code of 0. It may make use of the variables \"process\", \"status\" and
-\"output\". The first two are the arguments for the process sentinel callbkack
-as is the default in Emacs, while \"output\" is the output produced by the
-process.
+ON-SUCCESS is the code that will run once the process has finished with an exit
+code of 0. In its context, these variables are bound:
+`process': The process object, as passed to the sentinel callback function.
+`status': The string exit status, as passed to the sentinel callback function.
+`output': The output of the process, including both stdin and stdout.
 
-ON-FAILURE is the inverse to ON-SUCCESS, it will only run if the process has
+ON-SUCCESS may take one of 3 forms: an unquoted sexp, a quoted function or an
+unquoted function. In the former two cases the passed fuction will be called
+with `process', `status' and `output' as its parameters.
+
+ON-FAILURE is the inverse to ON-SUCCESS; it will only run if the process has
 finished with a non-zero exit code. Otherwise the same conditions apply as for
 ON-SUCCESS.
 
 ON-STATUS-CHANGE will run on every status change, even if the process remains
 running. It is meant for debugging and has access to the same variables as
 ON-SUCCESS and ON-ERROR, including the (potentially incomplete) process output.
+Otherwise the same conditions as for ON-SUCCESS and ON-ERROR apply.
 
 DIRECTORY is the value given to `default-directory' for the context of the
 process. If not given it will fall back the current value of `default-directory'.
@@ -81,6 +86,25 @@ CONNECTION-TYPE will be passed to the :connection-process property of
          (name (or name (concat "Pfuture Callback: [" (mapconcat #'identity command " ") "]")))
          (connection-type (or connection-type (quote 'pipe)))
          (directory (or directory default-directory)))
+    ;; When we receive a quoted function for on-succes or on-error the macro doesn't actually
+    ;; see a function symbol, it sees a cons in the form (function name) where `name' is the name
+    ;; of the quoted function. If we want to accept quoted functions as well we need to manually bend
+    ;; things into shape.
+    (when (and (consp on-success)
+               (= 2 (length on-success))
+               (eq 'function (car on-success))
+               (fboundp (cadr on-success)))
+      (setq on-success (cadr on-success)))
+    (when (and (consp on-error)
+               (= 2 (length on-error))
+               (eq 'function (car on-error))
+               (fboundp (cadr on-error)))
+      (setq on-error (cadr on-error)))
+    (when (and (consp on-status-change)
+               (= 2 (length on-status-change))
+               (eq 'function (car on-status-change))
+               (fboundp (cadr on-status-change)))
+      (setq on-status-change (cadr on-status-change)))
     `(let ((default-directory ,directory))
        (make-process
         :name ,name
@@ -94,8 +118,16 @@ CONNECTION-TYPE will be passed to the :connection-process property of
                     (unless (process-live-p process)
                       (let ((output (process-get process 'result)))
                         (if (= 0 (process-exit-status process))
-                            ,on-success
-                          ,on-error))))))))
+                            ,@(cl-typecase on-success
+                                (function
+                                 `((funcall (function ,on-success) process status output)))
+                                (cons
+                                 `(,on-success)))
+                          ,@(cl-typecase on-error
+                              (function
+                               `((funcall (function ,on-error) process status output)))
+                              (cons
+                               `(,on-error)))))))))))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
   "Block until PROCESS has produced output and return it.

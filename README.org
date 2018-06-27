@@ -74,16 +74,24 @@ The many arguments ~pfuture-callback~ are extensively documented in its docstrin
 code provides an example of using it to run a callback based on the output of a git process.
 
 #+BEGIN_SRC emacs-lisp
+  (defun success-callback (process status output)
+    (message "Success!")
+    (message "Process: %s" process)
+    (message "Status: %s" status)
+    (message "Output: %s" output))
+
+  (defun error-callback (process status output)
+    (message "Error!")
+    (message "Process: %s" process)
+    (message "Status: %s" status)
+    (message "Output: %s" output))
+
   (pfuture-callback ["git" "status" "--porcelain" "--ignored" "."]
     :directory "~/Documents/git/pfuture"
     :name "Pfuture Example"
     :connection-type 'pipe
-    :on-success
-    (message "Success:\n%s" output)
-    :on-error
-    (message "Failure with status code%s:\n%s"
-             (process-exit-status process)
-             output)
+    :on-success #'success-callback
+    :on-error #'error-callback
     :on-status-change
     (message "Debug status change: %s" status))
 #+END_SRC
