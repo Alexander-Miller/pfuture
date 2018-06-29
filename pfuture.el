@@ -86,25 +86,22 @@ CONNECTION-TYPE will be passed to the :connection-process property of
          (name (or name (concat "Pfuture Callback: [" (mapconcat #'identity command " ") "]")))
          (connection-type (or connection-type (quote 'pipe)))
          (directory (or directory default-directory)))
-    ;; When we receive a quoted function for on-succes or on-error the macro doesn't actually
+    ;; When we receive a quoted function for on-success or on-error the macro doesn't actually
     ;; see a function symbol, it sees a cons in the form (function name) where `name' is the name
     ;; of the quoted function. If we want to accept quoted functions as well we need to manually bend
     ;; things into shape.
-    (when (and (consp on-success)
-               (= 2 (length on-success))
-               (eq 'function (car on-success))
-               (fboundp (cadr on-success)))
-      (setq on-success (cadr on-success)))
-    (when (and (consp on-error)
-               (= 2 (length on-error))
-               (eq 'function (car on-error))
-               (fboundp (cadr on-error)))
-      (setq on-error (cadr on-error)))
-    (when (and (consp on-status-change)
-               (= 2 (length on-status-change))
-               (eq 'function (car on-status-change))
-               (fboundp (cadr on-status-change)))
-      (setq on-status-change (cadr on-status-change)))
+    (setq on-success
+          (pcase on-success
+            (`(function ,fn) fn)
+            (_ on-success))
+          on-error
+          (pcase on-error
+            (`(function ,fn) fn)
+            (_ on-error))
+          on-status-change
+          (pcase on-status-change
+            (`(function ,fn) fn)
+            (_ on-status-change)))
     `(let ((default-directory ,directory))
        (make-process
         :name ,name
