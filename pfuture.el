@@ -102,33 +102,38 @@ CONNECTION-TYPE will be passed to the :connection-process property of
           (pcase on-status-change
             (`(function ,fn) fn)
             (_ on-status-change)))
-    `(let ((default-directory ,directory))
-       (make-process
-        :name ,name
-        :command ',command
-        :connection-type ,connection-type
-        :filter #'pfuture--append-output
-        :sentinel (lambda (process status)
-                    ,@(when on-status-change
-                        `((let ((output (process-get process 'result)))
-                            ,@(cl-typecase on-status-change
-                                (function
-                                 `((funcall (function ,on-status-change) process status output)))
-                                (cons
-                                 `(,on-status-change))))))
-                    (unless (process-live-p process)
-                      (let ((output (process-get process 'result)))
-                        (if (= 0 (process-exit-status process))
-                            ,@(cl-typecase on-success
-                                (function
-                                 `((funcall (function ,on-success) process status output)))
-                                (cons
-                                 `(,on-success)))
-                          ,@(cl-typecase on-error
-                              (function
-                               `((funcall (function ,on-error) process status output)))
-                              (cons
-                               `(,on-error)))))))))))
+    `(let* ((default-directory ,directory)
+            (buffer (generate-new-buffer ,name))
+            (process
+             (make-process
+              :name ,name
+              :command ',command
+              :connection-type ,connection-type
+              :filter #'pfuture--append-output-to-buffer
+              :sentinel (lambda (process status)
+                          ,@(when on-status-change
+                              `((let ((output (pfuture--result-from-buffer process)))
+                                  ,@(cl-typecase on-status-change
+                                      (function
+                                       `((funcall (function ,on-status-change) process status output)))
+                                      (cons
+                                       `(,on-status-change))))))
+                          (unless (process-live-p process)
+                            (let ((output (pfuture--result-from-buffer process)))
+                              (if (= 0 (process-exit-status process))
+                                  ,@(cl-typecase on-success
+                                      (function
+                                       `((funcall (function ,on-success) process status output)))
+                                      (cons
+                                       `(,on-success)))
+                                ,@(cl-typecase on-error
+                                    (function
+                                     `((funcall (function ,on-error) process status output)))
+                                    (cons
+                                     `(,on-error)))))
+                            (kill-buffer (process-get process 'buffer)))))))
+       (process-put process 'buffer buffer)
+       process)))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
   "Block until PROCESS has produced output and return it.
@@ -164,6 +169,17 @@ If the process never quits this method will block forever. Use with caution!"
 (defun pfuture--append-output (process msg)
   "Append PROCESS' MSG to the already saved output."
   (process-put process 'result (concat (process-get process 'result) msg)))
+
+(defun pfuture--append-output-to-buffer (process msg)
+  "Append PROCESS' MSG to its output buffer."
+  (with-current-buffer (process-get process 'buffer)
+    (goto-char (point-min))
+    (insert msg)))
+
+(defsubst pfuture--result-from-buffer (process)
+  "Get the output from PROCESS' buffer."
+  (with-current-buffer (process-get process 'buffer)
+    (buffer-string)))
 
 (provide 'pfuture)
 
