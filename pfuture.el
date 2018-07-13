@@ -56,7 +56,7 @@ FN may either be a (sharp) quoted function, and unquoted function or an sexp."
     ((pred null)
      (ignore fn))
     (fn
-     `(funcall #',fn ,@args))))
+     `(funcall ,fn ,@args))))
 
 (cl-defmacro pfuture-callback (command &key directory on-success on-error on-status-change name connection-type)
   "Pfuture variant that supports a callback-based workflow.
