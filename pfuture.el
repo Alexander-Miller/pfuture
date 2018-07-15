@@ -51,7 +51,7 @@ FN may either be a (sharp) quoted function, and unquoted function or an sexp."
      `(,fn ,@args))
     (`(quote ,fn)
      `(,fn ,@args))
-    (`(,_ . ,_)
+    ((or `(,_ . ,_) `(,_))
      fn)
     ((pred null)
      (ignore fn))
