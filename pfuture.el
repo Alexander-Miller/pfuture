@@ -58,13 +58,22 @@ FN may either be a (sharp) quoted function, and unquoted function or an sexp."
     (fn
      `(funcall ,fn ,@args))))
 
-(cl-defmacro pfuture-callback (command &key directory on-success on-error on-status-change name connection-type)
+(cl-defmacro pfuture-callback
+    (command &key
+             directory
+             on-success
+             on-error
+             on-status-change
+             name
+             connection-type
+             buffer
+             filter)
   "Pfuture variant that supports a callback-based workflow.
 Internally based on `make-process'.
 
 The first - and only required - argument is COMMAND. It is an (unquoted) list of
 the command and the arguments for the process that should be started. A vector
-is likewise acceptable, the difference is purely cosmetic.
+is likewise acceptable - the difference is purely cosmetic.
 
 The rest of the argument list is made up of the following keyword arguments:
 
@@ -76,7 +85,7 @@ code of 0. In its context, these variables are bound:
 
 ON-SUCCESS may take one of 3 forms: an unquoted sexp, a quoted function or an
 unquoted function. In the former two cases the passed fuction will be called
-with `process', `status' and `output' as its parameters.
+with `process', `status' and `output' as its arguments.
 
 ON-FAILURE is the inverse to ON-SUCCESS; it will only run if the process has
 finished with a non-zero exit code. Otherwise the same conditions apply as for
@@ -94,7 +103,20 @@ NAME will be passed to the :name property of `make-process'. If not given it wil
 fall back to \"Pfuture Callback [$COMMAND]\".
 
 CONNECTION-TYPE will be passed to the :connection-process property of
-`make-process'. If not given it will fall back to 'pipe."
+`make-process'. If not given it will fall back to 'pipe.
+
+BUFFER is the buffer that will be used by the process to collect its output.
+Providing a buffer outside of specific use-cases is not necessary, as by default
+pfuture will assign every launched command its own unique buffer and kill it
+after ON-SUCCESS or ON-ERROR have finished running. However, no such cleanup
+will take place if a custom buffer is provided.
+
+FILTER is a process filter-function (quoted function reference) that can be used
+to overwrite pfuture's own filter. By default pfuture uses its filter function
+to collect the launched process' output in its buffer, thus when providing a
+custom filter output needs to be gathered another way. Note that the process'
+buffer is stored in its `buffer' property and is therefore accessible via
+\(process-get process 'buffer\)."
   (declare (indent 1))
   (let* ((command (if (vectorp command)
                       (cl-map 'list #'identity command)
@@ -102,14 +124,16 @@ CONNECTION-TYPE will be passed to the :connection-process property of
          (name (or name (concat "Pfuture Callback: [" (mapconcat #'identity command " ") "]")))
          (connection-type (or connection-type (quote 'pipe)))
          (directory (or directory default-directory)))
+    (unless (or on-success on-error)
+      (setq on-success '(function ignore)))
     `(let* ((default-directory ,directory)
-            (buffer (generate-new-buffer ,name))
+            (buffer (or ,buffer (generate-new-buffer ,name)))
             (process
              (make-process
               :name ,name
               :command ',command
               :connection-type ,connection-type
-              :filter #'pfuture--append-output-to-buffer
+              :filter ,(or filter '(function pfuture--append-output-to-buffer))
               :sentinel (lambda (process status)
                           ,@(when on-status-change
                               `((let ((output (pfuture--result-from-buffer process)))
@@ -122,7 +146,8 @@ CONNECTION-TYPE will be passed to the :connection-process property of
                                     process status output)
                                 (pfuture--decompose-fn-form ,on-error
                                   process status output)))
-                            (kill-buffer (process-get process 'buffer)))))))
+                            ,(unless buffer
+                               `(kill-buffer (process-get process 'buffer))))))))
        (process-put process 'buffer buffer)
        process)))
 
