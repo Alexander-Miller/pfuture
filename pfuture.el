@@ -136,16 +136,14 @@ buffer is stored in its `buffer' property and is therefore accessible via
               :filter ,(or filter '(function pfuture--append-output-to-buffer))
               :sentinel (lambda (process status)
                           ,@(when on-status-change
-                              `((let ((output (pfuture--result-from-buffer process)))
-                                  (pfuture--decompose-fn-form ,on-status-change
-                                    process status output))))
+                              `((pfuture--decompose-fn-form ,on-status-change
+                                  process status buffer)))
                           (unless (process-live-p process)
-                            (let ((output (pfuture--result-from-buffer process)))
-                              (if (= 0 (process-exit-status process))
-                                  (pfuture--decompose-fn-form ,on-success
-                                    process status output)
-                                (pfuture--decompose-fn-form ,on-error
-                                  process status output)))
+                            (if (= 0 (process-exit-status process))
+                                (pfuture--decompose-fn-form ,on-success
+                                  process status buffer)
+                              (pfuture--decompose-fn-form ,on-error
+                                process status buffer))
                             ,(unless buffer
                                `(kill-buffer (process-get process 'buffer))))))))
        (process-put process 'buffer buffer)
@@ -190,7 +188,7 @@ If the process never quits this method will block forever. Use with caution!"
 (defun pfuture--append-output-to-buffer (process msg)
   "Append PROCESS' MSG to its output buffer."
   (with-current-buffer (process-get process 'buffer)
-    (goto-char (point-min))
+    (goto-char (point-max))
     (insert msg)))
 
 (defsubst pfuture--result-from-buffer (process)
