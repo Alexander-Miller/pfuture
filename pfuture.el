@@ -127,7 +127,7 @@ buffer is stored in its `buffer' property and is therefore accessible via
     (unless (or on-success on-error)
       (setq on-success '(function ignore)))
     `(let* ((default-directory ,directory)
-            (buffer (or ,buffer (generate-new-buffer ,name)))
+            (pfuture-buffer (or ,buffer (generate-new-buffer ,name)))
             (process
              (make-process
               :name ,name
@@ -137,16 +137,16 @@ buffer is stored in its `buffer' property and is therefore accessible via
               :sentinel (lambda (process status)
                           ,@(when on-status-change
                               `((pfuture--decompose-fn-form ,on-status-change
-                                  process status buffer)))
+                                  process status pfuture-buffer)))
                           (unless (process-live-p process)
                             (if (= 0 (process-exit-status process))
                                 (pfuture--decompose-fn-form ,on-success
-                                  process status buffer)
+                                  process status pfuture-buffer)
                               (pfuture--decompose-fn-form ,on-error
-                                process status buffer))
+                                process status pfuture-buffer))
                             ,(unless buffer
                                `(kill-buffer (process-get process 'buffer))))))))
-       (process-put process 'buffer buffer)
+       (process-put process 'buffer pfuture-buffer)
        process)))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
