@@ -69,7 +69,7 @@ FN may either be a (sharp) quoted function, and unquoted function or an sexp."
              buffer
              filter)
   "Pfuture variant that supports a callback-based workflow.
-Internally based on `make-process'.
+Internally based on `make-process'. Requires lexical scope.
 
 The first - and only required - argument is COMMAND. It is an (unquoted) list of
 the command and the arguments for the process that should be started. A vector
@@ -81,11 +81,13 @@ ON-SUCCESS is the code that will run once the process has finished with an exit
 code of 0. In its context, these variables are bound:
 `process': The process object, as passed to the sentinel callback function.
 `status': The string exit status, as passed to the sentinel callback function.
-`output': The output of the process, including both stdin and stdout.
+`buffer': The buffer where the output of the process is collected, including
+          both stdin and stdout. You can use `pfuture-output-from-buffer' to
+          quickly grab the buffer's content.
 
 ON-SUCCESS may take one of 3 forms: an unquoted sexp, a quoted function or an
 unquoted function. In the former two cases the passed fuction will be called
-with `process', `status' and `output' as its arguments.
+with `process', `status' and `buffer' as its arguments.
 
 ON-FAILURE is the inverse to ON-SUCCESS; it will only run if the process has
 finished with a non-zero exit code. Otherwise the same conditions apply as for
@@ -93,8 +95,8 @@ ON-SUCCESS.
 
 ON-STATUS-CHANGE will run on every status change, even if the process remains
 running. It is meant for debugging and has access to the same variables as
-ON-SUCCESS and ON-ERROR, including the (potentially incomplete) process output.
-Otherwise the same conditions as for ON-SUCCESS and ON-ERROR apply.
+ON-SUCCESS and ON-ERROR, including the (potentially incomplete) process output
+buffer. Otherwise the same conditions as for ON-SUCCESS and ON-ERROR apply.
 
 DIRECTORY is the value given to `default-directory' for the context of the
 process. If not given it will fall back the current value of `default-directory'.
@@ -177,7 +179,7 @@ If the process never quits this method will block forever. Use with caution!"
   (process-get process 'result))
 
 (defsubst pfuture-result (process)
-  "Return the output of PROCESS."
+  "Return the output of a pfuture PROCESS."
   (declare (side-effect-free t))
   (process-get process 'result))
 
@@ -191,10 +193,10 @@ If the process never quits this method will block forever. Use with caution!"
     (goto-char (point-max))
     (insert msg)))
 
-(defsubst pfuture--result-from-buffer (process)
-  "Get the output from PROCESS' buffer."
+(defsubst pfuture-output-from-buffer (buffer)
+  "Return the process output collected in BUFFER."
   (declare (side-effect-free t))
-  (with-current-buffer (process-get process 'buffer)
+  (with-current-buffer buffer
     (buffer-string)))
 
 (provide 'pfuture)
