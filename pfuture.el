@@ -81,9 +81,9 @@ ON-SUCCESS is the code that will run once the process has finished with an exit
 code of 0. In its context, these variables are bound:
 `process': The process object, as passed to the sentinel callback function.
 `status': The string exit status, as passed to the sentinel callback function.
-`buffer': The buffer where the output of the process is collected, including
-          both stdin and stdout. You can use `pfuture-output-from-buffer' to
-          quickly grab the buffer's content.
+`pfuture-buffer': The buffer where the output of the process is collected,
+ including both stdin and stdout. You can use `pfuture-output-from-buffer' to
+ quickly grab the buffer's content.
 
 ON-SUCCESS may take one of 3 forms: an unquoted sexp, a quoted function or an
 unquoted function. In the former two cases the passed fuction will be called
