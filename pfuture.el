@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'inline)
 
 ;;;###autoload
 (defun pfuture-new (cmd &rest cmd-args)
@@ -179,10 +180,12 @@ If the process never quits this method will block forever. Use with caution!"
       (accept-process-output process nil nil t)))
   (process-get process 'result))
 
-(defsubst pfuture-result (process)
+(define-inline pfuture-result (process)
   "Return the output of a pfuture PROCESS."
   (declare (side-effect-free t))
-  (process-get process 'result))
+  (inline-letevals process
+    (inline-quote
+     (process-get ,process 'result))))
 
 (defun pfuture--append-output (process msg)
   "Append PROCESS' MSG to the already saved output."
@@ -194,11 +197,13 @@ If the process never quits this method will block forever. Use with caution!"
     (goto-char (point-max))
     (insert msg)))
 
-(defsubst pfuture-output-from-buffer (buffer)
+(define-inline pfuture-output-from-buffer (buffer)
   "Return the process output collected in BUFFER."
   (declare (side-effect-free t))
-  (with-current-buffer buffer
-    (buffer-string)))
+  (inline-letevals (buffer)
+    (inline-quote
+     (with-current-buffer ,buffer
+       (buffer-string)))))
 
 (provide 'pfuture)
 
