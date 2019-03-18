@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.3
+;; Version: 1.4
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -73,7 +73,8 @@ Internally based on `make-process'. Requires lexical scope.
 
 The first - and only required - argument is COMMAND. It is an (unquoted) list of
 the command and the arguments for the process that should be started. A vector
-is likewise acceptable - the difference is purely cosmetic.
+is likewise acceptable - the difference is purely cosmetic (this does not apply
+when command is passed as a variable, in this case it must be a list).
 
 The rest of the argument list is made up of the following keyword arguments:
 
@@ -120,24 +121,19 @@ custom filter output needs to be gathered another way. Note that the process'
 buffer is stored in its `buffer' property and is therefore accessible via
 \(process-get process 'buffer\)."
   (declare (indent 1))
-  (let* ((command (cond
-                   ((vectorp command)
-                    `(quote ,(cl-map 'list #'identity command)))
-                   ((eq '\` (car command))
-                    (prog1 command
-                      ;; a backquoted command's name is just about impossible to handle otherwise
-                      (setf name (or name (concat "Pfuture Callback: []")))))
-                   (t `(quote ,command))))
-         (name (or name (concat "Pfuture Callback: [" (mapconcat #'identity command " ") "]")))
+  (let* ((command (if (vectorp command)
+                      `(quote ,(cl-map 'list #'identity command))
+                    command))
          (connection-type (or connection-type (quote 'pipe)))
          (directory (or directory default-directory)))
     (unless (or on-success on-error)
       (setq on-success '(function ignore)))
     `(let* ((default-directory ,directory)
-            (pfuture-buffer (or ,buffer (generate-new-buffer ,name)))
+            (name (or ,name (format "Pfuture-Callback %s" ,command)))
+            (pfuture-buffer (or ,buffer (generate-new-buffer name)))
             (process
              (make-process
-              :name ,name
+              :name name
               :command ,command
               :connection-type ,connection-type
               :filter ,(or filter '(function pfuture--append-output-to-buffer))
