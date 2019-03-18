@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.4
+;; Version: 1.5
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ code of 0. In its context, these variables are bound:
 `process': The process object, as passed to the sentinel callback function.
 `status': The string exit status, as passed to the sentinel callback function.
 `pfuture-buffer': The buffer where the output of the process is collected,
- including both stdin and stdout. You can use `pfuture-output-from-buffer' to
+ including both stdin and stdout. You can use `pfuture-callback-output' to
  quickly grab the buffer's content.
 
 ON-SUCCESS may take one of 3 forms: an unquoted sexp, a quoted function or an
@@ -109,7 +109,8 @@ fall back to \"Pfuture Callback [$COMMAND]\".
 CONNECTION-TYPE will be passed to the :connection-process property of
 `make-process'. If not given it will fall back to 'pipe.
 
-BUFFER is the buffer that will be used by the process to collect its output.
+BUFFER is the buffer that will be used by the process to collect its output,
+quickly collectible with `pfuture-output-from-buffer'.
 Providing a buffer outside of specific use-cases is not necessary, as by default
 pfuture will assign every launched command its own unique buffer and kill it
 after ON-SUCCESS or ON-ERROR have finished running. However, no such cleanup
@@ -139,6 +140,7 @@ buffer is stored in its `buffer' property and is therefore accessible via
               :connection-type ,connection-type
               :filter ,(or filter '(function pfuture--append-output-to-buffer))
               :sentinel (lambda (process status)
+                          (ignore status)
                           ,@(when on-status-change
                               `((pfuture--decompose-fn-form ,on-status-change
                                   process status pfuture-buffer)))
@@ -152,6 +154,11 @@ buffer is stored in its `buffer' property and is therefore accessible via
                                `(kill-buffer (process-get process 'buffer))))))))
        (process-put process 'buffer pfuture-buffer)
        process)))
+
+(defmacro pfuture-callback-output ()
+  "Retrieve the output from the pfuture-buffer variable in the current scope.
+Meant to be used with `pfuture-callback'."
+  `(pfuture-output-from-buffer pfuture-buffer))
 
 (cl-defun pfuture-await (process &key (timeout 1) (just-this-one t))
   "Block until PROCESS has produced output and return it.
