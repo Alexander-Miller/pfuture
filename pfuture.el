@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.5
+;; Version: 1.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -190,7 +190,7 @@ If the process never quits this method will block forever. Use with caution!"
 (define-inline pfuture-result (process)
   "Return the output of a pfuture PROCESS."
   (declare (side-effect-free t))
-  (inline-letevals process
+  (inline-letevals (process)
     (inline-quote
      (process-get ,process 'result))))
 
