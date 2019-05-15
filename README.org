@@ -1,97 +1,94 @@
-# -*- fill-column: 100 -*-
-* Pfuture
+# -*- fill-column: 100; eval: (auto-fill-mode t) -*-
 
+* Content                                                                            :TOC:noexport:
+- [[#pfuture][Pfuture]]
+   - [[#what-it-is][What it is]]
+   - [[#practical-examples][Practical examples]]
+      - [[#with-a-future-object][With a Future object]]
+      - [[#with-a-callback][With a Callback]]
+   - [[#about-asyncel][About async.el]]
+
+* Pfuture
 ** What it is
 
-pfuture.el offers a set of simple functions wrapping Emacs' existing process creation functionality.
-It attaches the output of a process to the process itself - turning it into a "future" and making it
-conveniently easy to pass around to other functions, wait for it to complete and access its output.
-In other words what this package offers is an asynchronous version of ~shell-command-to-string~
-without the need to deal with process creation and filter functions.
+pfuture.el offers a set of simple functions wrapping Emacs' existing process creation capabilities.
+It allows to conveniently deal with external processes in an asynchronous manner without having to
+worry about stdout buffers and filter- & sentinel-functions.
 
-** How to use it
-
- * ~pfuture-new (cmd &rest cmd-args)~
-   Create a new future process for command CMD and arguments CMD-ARGS. This will return a process
-   object with one additional ~'result~ property which can be read via ~(process-get process
-   'result)~ or alternatively with ~(pfuture-result process)~.
-
-   Note that CMD-ARGS must be a *sequence* of strings, such that
-   this is wrong: (pfuture-new "git status")
-   this is right: (pfuture-new "git" "status")
-
- * ~pfuture-await (process &key (timeout 1) (just-this-one t))~
-   Block until PROCESS has produced output and return it.
-
-   Will accept the following optional keyword arguments:
-
-   TIMEOUT: The timeout in seconds to wait for the process. May be a float to
-   specify fractional number of seconds. In case of a timeout nil will be returned.
-
-   JUST-THIS-ONE: When t only read from the process of FUTURE and no other. For
-   details see documentation of ~accept-process-output~.
-
- * ~pfuture-await-to-finish (process)~
-   Keep reading the output of PROCESS until it is done. Same as ~pfuture-await~, but will keep
-   reading (and blocking) so long as the process is *alive*.
-
-   If the process never quits this method will block forever. Use with caution!"
-
- * ~pfuture-result (process)~
-   Return the output of PROCESS.
-
-*** Also with callbacks
-
-If your use-case prevents you from keeping the process around for later use and you instead prefer a
-simple way to launch a process and run a callback once it's finished you can use ~pfuture-callback~.
-
+The following examples practically demonstrate its capabilities. Detailed and formal documentation
+can be found in each function's eldoc.
 
 ** Practical examples
 
-*** Future version
-Given this artificially slow_status.sh bash script
+Pfuture has 2 entry points.
 
-#+BEGIN_SRC bash
-  sleep 3 && git status
-#+END_SRC
+ - ~pfuture-new~ creates a ~future~ object that can be stored, passed around to other functions and
+   awaited to completion.
+ - ~pfuture-callback~ allows starting an external process in a fire-and-forget fashion, alongside
+   callbacks to execute when the process succeeds or fails, with full access to its output.
 
-despite running the script twice the following code will execute within 3 seconds on account of
-being asynchronous:
+*** With a Future object
+
+We can use pfuture to start an artficially long-running process (simulated with a sleep of 3
+seconds) twice and wait until both futures complete. Despite sleeping twice only 3 seconds will have
+passed since the processes run in parallel.
 
 #+BEGIN_SRC emacs-lisp
   (let ((start   (float-time))
-        (future1 (pfuture-new "bash" "slow_status.sh"))
-        (future2 (pfuture-new "bash" "slow_status.sh"))
-        (future3 (pfuture-new "echo" "Foo" "Bar")))
+        (future1 (pfuture-new "sleep" "3"))
+        (future2 (pfuture-new "sleep" "3"))
+        (future3 (pfuture-new "echo" "All futures have finished after %s seconds.")))
     (pfuture-await future1 :timeout 4 :just-this-one nil)
     (pfuture-await future2 :timeout 4 :just-this-one nil)
-    (message "%s finished after %s seconds" (pfuture-result future3) (round (- (float-time) start))))
+    (pfuture-await future3 :timeout 4 :just-this-one nil)
+    (message (pfuture-result future3) (round (- (float-time) start))))
 #+END_SRC
 
-*** Callback version
-
-The many arguments ~pfuture-callback~ are extensively documented in its docstring. The following
-code provides an example of using it to run a callback based on the output of a git process.
+Stdout and stderr in future objects are separate:
 
 #+BEGIN_SRC emacs-lisp
-  (defun success-callback (process status output)
-    (message "Success!")
-    (message "Process: %s" process)
-    (message "Status: %s" status)
-    (message "Output: %s" output))
-
-  (defun error-callback (process status output)
-    (message "Error!")
-    (message "Process: %s" process)
-    (message "Status: %s" status)
-    (message "Output: %s" output))
-
-  (pfuture-callback ["git" "status" "--porcelain" "--ignored" "."]
-    :directory "~/Documents/git/pfuture"
-    :name "Pfuture Example"
-    :connection-type 'pipe
-    :on-success #'success-callback
-    :on-error #'error-callback
-    :on-status-change
-    (message "Debug status change: %s" status))
+  (let ((future (pfuture-new "ls" "nonexsitent_file")))
+    (pfuture-await-to-finish future)
+    (message "Future stdout: [%s]" (string-trim (pfuture-result future)))
+    (message "Future stderr: [%s]" (string-trim (pfuture-stderr future))))
 #+END_SRC
+
+Calls to ~pfuture-await~ (and especially ~pfuture-await-to-finish~) are blocking, so it is important
+to set an appropriate timeout (default is 1 second) or to be really sure that the process is going
+to terminate.
+
+*** With a Callback
+
+Here we start another process and instead of keeping the future around and eventually awaiting it we
+can simply define what steps to take once the process has completed, depending on whether it failed
+or not.
+
+(Note that ~pfuture-callback~ requires lexical scope)
+
+#+BEGIN_SRC emacs-lisp
+  (defun showcase-error-callback (process status output)
+    (message "Pfuture Error!")
+    (message "Process: %s" process)
+    (message "Status: %s" status)
+    (message "Output: %s" output))
+
+  (let ((debug-callback (lambda (pfuture-process status _pfuture-buffer)
+                          (message "Pfuture Debug: Process [%s] changed sttaus to [%s]" pfuture-process status))))
+    (pfuture-callback ["ls" "-alh" "."]
+      :directory "~/Documents/git/pfuture"
+      :name "Pfuture Example"
+      :on-success (message "Pfuture Finish:\n%s" (pfuture-callback-output))
+      :on-error #'showcase-error-callback
+      :on-status-change debug-callback))
+#+END_SRC
+
+** About async.el
+
+You might be inclined to compare both packages since they both, at first glance, handle asynchronous
+processes, but in truth they have very little in common outside of their general asynchronous
+nature.
+
+Async.el allows you to start and handle an asynchronous Emacs instance, running Elisp code. Pfuture
+lets you start any external command like ~git~ or ~ls~ (as its mostly a wrapper around
+~make-process~), and then read its output. So while the two packages may appear similar at first
+there is really nothing to compare.
