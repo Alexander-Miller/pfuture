@@ -1,11 +1,11 @@
 ;;; pfuture.el --- a simple wrapper around asynchronous processes -*- lexical-binding: t -*-
 
-;; Copyright (C) 2018 Alexander Miller
+;; Copyright (C) 2020 Alexander Miller
 
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.8
+;; Version: 1.9
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -180,7 +180,9 @@ buffer is stored in its `buffer' property and is therefore accessible via
       (setq on-success '(function ignore)))
     `(let* ((default-directory ,directory)
             (name (or ,name (format "Pfuture-Callback %s" ,command)))
-            (pfuture-buffer (or ,buffer (generate-new-buffer name)))
+            ;; pfuture's buffers are internal implementation details
+            ;; nobody should care if a new one is created
+            (pfuture-buffer (or ,buffer (let (buffer-list-update-hook) (generate-new-buffer name))))
             (process
              (make-process
               :name name
