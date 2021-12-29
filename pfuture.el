@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.10
+;; Version: 1.10.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -153,10 +153,11 @@ ON-SUCCESS and ON-ERROR, including the (potentially incomplete) process output
 buffer. Otherwise the same conditions as for ON-SUCCESS and ON-ERROR apply.
 
 DIRECTORY is the value given to `default-directory' for the context of the
-process. If not given it will fall back the current value of `default-directory'.
+process. If not given it will fall back the current value of
+`default-directory'.
 
-NAME will be passed to the :name property of `make-process'. If not given it will
-fall back to \"Pfuture Callback [$COMMAND]\".
+NAME will be passed to the :name property of `make-process'. If not given it
+will fall back to \"Pfuture Callback [$COMMAND]\".
 
 CONNECTION-TYPE will be passed to the :connection-process property of
 `make-process'. If not given it will fall back to 'pipe.
@@ -255,7 +256,7 @@ To get the full output use either `pfuture-await' or `pfuture-await-to-finish'."
   (declare (side-effect-free t))
   (inline-letevals (process)
     (inline-quote
-     (process-get process 'stderr))))
+     (process-get ,process 'stderr))))
 
 (defun pfuture-await-to-finish (process)
   "Keep reading the output of PROCESS until it is done.
