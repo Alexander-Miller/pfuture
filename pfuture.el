@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.10.1
+;; Version: 1.10.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -46,7 +46,14 @@
       (process-put process 'stderr-process nil)
       ;; delete-process may trigger other sentinels. If there are many pfutures,
       ;; this will overflow the stack.
-      (run-with-idle-timer 0 nil #'pfuture--delete-process stderr-process))))
+      (run-with-idle-timer 0 nil #'pfuture--delete-process stderr-process))
+    ;; Make sure the stdout buffer is deleted even if the future
+    ;; is never awaited
+    (unless (process-get process 'result)
+      (let* ((buffer (process-get process 'buffer))
+             (result (with-current-buffer buffer (buffer-string))))
+        (kill-buffer buffer)
+        (process-put process 'result result)))))
 
 ;;;###autoload
 (defun pfuture-new (&rest cmd)
