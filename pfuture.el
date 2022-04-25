@@ -5,7 +5,7 @@
 ;; Author: Alexander Miller <alexanderm@web.de>
 ;; Homepage: https://github.com/Alexander-Miller/pfuture
 ;; Package-Requires: ((emacs "25.2"))
-;; Version: 1.10.2
+;; Version: 1.10.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ Note that CMD must be a *sequence* of strings, meaning
 this is wrong: (pfuture-new \"git status\")
 this is right: (pfuture-new \"git\" \"status\")"
   (let ((stderr (make-pipe-process
-                 :name "Process Future stderr"
+                 :name " Process Future stderr"
                  ;; Use a dummy buffer for the stderr process. make-pipe-process creates a
                  ;; buffer unless one is specified, even when :filter is specified and the
                  ;; buffer is not used at all.
@@ -81,7 +81,7 @@ this is right: (pfuture-new \"git\" \"status\")"
     ;; cannot receive input.
     (set-process-buffer stderr nil)
     (condition-case err
-        (let* ((name (format "Pfuture-Buffer %s" cmd))
+        (let* ((name (format " Pfuture-Buffer %s" cmd))
                (pfuture-buffer
                 (let (buffer-list-update-hook)
                   (generate-new-buffer name)))
@@ -191,7 +191,7 @@ buffer is stored in its `buffer' property and is therefore accessible via
     (unless (or on-success on-error)
       (setq on-success '(function ignore)))
     `(let* ((default-directory ,directory)
-            (name (or ,name (format "Pfuture-Callback %s" ,command)))
+            (name (or ,name (format " Pfuture-Callback %s" ,command)))
             ;; pfuture's buffers are internal implementation details
             ;; nobody should care if a new one is created
             (pfuture-buffer (or ,buffer (let (buffer-list-update-hook) (generate-new-buffer name))))
