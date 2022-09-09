@@ -59,9 +59,9 @@
 (defun pfuture-new (&rest cmd)
   "Create a new future process for command CMD.
 Any arguments after the command are interpreted as arguments to the command.
-This will return a process object with additional 'stderr and 'stdout
-properties, which can be read via \(process-get process 'stdout\) and
-\(process-get process 'stderr\) or alternatively with
+This will return a process object with additional \\='stderr and \\='stdout
+properties, which can be read via \(process-get process \\='stdout\) and
+\(process-get process \\='stderr\) or alternatively with
 \(pfuture-result process\) or \(pfuture-stderr process\).
 
 Note that CMD must be a *sequence* of strings, meaning
@@ -167,7 +167,7 @@ NAME will be passed to the :name property of `make-process'. If not given it
 will fall back to \"Pfuture Callback [$COMMAND]\".
 
 CONNECTION-TYPE will be passed to the :connection-process property of
-`make-process'. If not given it will fall back to 'pipe.
+`make-process'. If not given it will fall back to \\='pipe.
 
 BUFFER is the buffer that will be used by the process to collect its output,
 quickly collectible with `pfuture-output-from-buffer'.
@@ -181,7 +181,7 @@ to overwrite pfuture's own filter. By default pfuture uses its filter function
 to collect the launched process' output in its buffer, thus when providing a
 custom filter output needs to be gathered another way. Note that the process'
 buffer is stored in its `buffer' property and is therefore accessible via
-\(process-get process 'buffer\)."
+\(process-get process \\='buffer\)."
   (declare (indent 1))
   (let* ((command (if (vectorp command)
                       `(quote ,(cl-map 'list #'identity command))
